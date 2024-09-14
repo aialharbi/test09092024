@@ -1,5 +1,10 @@
 .streamlit/secrets.toml
 
+original_data_feed.py
+tteesstt.py
+
+all_translations_1.csv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
