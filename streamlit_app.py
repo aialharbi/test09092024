@@ -109,24 +109,48 @@ def get_available_row():
     c = conn.cursor()
     annotator_id = st.session_state.annotator_id
     
+    # Get list of skipped rows to exclude from fetching
+    skipped_rows = st.session_state.get('skipped_rows', [])
+    skipped_rows_placeholder = ','.join(['?'] * len(skipped_rows))
+
     # First, try to get a row that is already taken by this annotator
-    c.execute('''
-        SELECT * FROM original_data 
-        WHERE (processed = "no" OR processed = "skipped")
-        AND taken = "yes" 
-        AND taken_by = ?
-        LIMIT 1
-    ''', (annotator_id,))
+    if skipped_rows:
+        c.execute(f'''
+            SELECT * FROM original_data 
+            WHERE (processed = "no" OR processed = "skipped")
+            AND taken = "yes" 
+            AND taken_by = ?
+            AND entity_id NOT IN ({skipped_rows_placeholder})
+            LIMIT 1
+        ''', (annotator_id, *skipped_rows))
+    else:
+        c.execute('''
+            SELECT * FROM original_data 
+            WHERE (processed = "no" OR processed = "skipped")
+            AND taken = "yes" 
+            AND taken_by = ?
+            LIMIT 1
+        ''', (annotator_id,))
+    
     row = c.fetchone()
     
     # If no such row exists, get a new available row that is either not taken or has a null annotator
     if not row:
-        c.execute('''
-            SELECT * FROM original_data 
-            WHERE processed = "no"
-            AND (taken = "no" OR (taken = "yes" AND taken_by IS NULL))
-            LIMIT 1
-        ''')
+        if skipped_rows:
+            c.execute(f'''
+                SELECT * FROM original_data 
+                WHERE processed = "no"
+                AND (taken = "no" OR (taken = "yes" AND taken_by IS NULL))
+                AND entity_id NOT IN ({skipped_rows_placeholder})
+                LIMIT 1
+            ''', (*skipped_rows,))
+        else:
+            c.execute('''
+                SELECT * FROM original_data 
+                WHERE processed = "no"
+                AND (taken = "no" OR (taken = "yes" AND taken_by IS NULL))
+                LIMIT 1
+            ''')
         row = c.fetchone()
         
         # If a new row is fetched, mark it as taken by the current annotator
@@ -398,8 +422,14 @@ def skip_row_callback():
     conn.commit()
     conn.close()
     
+    # Add the entity_id to the list of skipped rows in session state
+    if 'skipped_rows' not in st.session_state:
+        st.session_state.skipped_rows = []
+    st.session_state.skipped_rows.append(entity_id)
+    
     # Fetch a new available row
     st.session_state.current_row = get_available_row()
+
 
 
 
