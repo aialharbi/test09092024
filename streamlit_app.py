@@ -516,7 +516,7 @@ if row:
         """, unsafe_allow_html=True)
 
 
-
+    st.text_area("", value=keyword)
     # Custom label and input for the source text
     st.markdown('<div class="custom-label" style="color:#F39C12; font-weight:bold;">الجملة العامية:</div>', unsafe_allow_html=True)
     edited_source_text = st.text_area("", value=source_text)
